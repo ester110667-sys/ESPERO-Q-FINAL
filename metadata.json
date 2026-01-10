@@ -1,0 +1,7 @@
+{
+  "name": "VAGAS  TS",
+  "description": "Sistema de controle de vagas para eventos de fotografia com gestão administrativa e inscrições em tempo real.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
