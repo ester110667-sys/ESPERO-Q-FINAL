@@ -15,6 +15,7 @@ export interface Event {
   openAt: number;
   closedAt: number;
   registrants: Registrant[];
+  registrantCount: number; // Otimização: Contagem total de inscritos
 }
 
 export interface Product {

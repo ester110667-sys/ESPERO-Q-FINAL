@@ -32,8 +32,8 @@ const App: React.FC = () => {
     if (!isSilent) setIsLoading(true);
     try {
       const { connected } = await checkConnection();
-      if (!connected) {
-        if (!isSilent) showToast('Falha na conexão com o banco.', 'error');
+      if (!connected && !isSilent) {
+        showToast('Falha na conexão com o banco.', 'error');
         return;
       }
       
@@ -65,26 +65,14 @@ const App: React.FC = () => {
   }, [selectedEvent, showToast]);
 
   useEffect(() => {
-    // Carrega dados iniciais
     loadData();
-    
-    // Configura inscrição em tempo real
-    const unsubscribe = api.subscribeToChanges(() => {
-      loadData(true);
-    });
-
-    // Cleanup síncrono exigido pelo React/TypeScript
-    return () => {
-      // Chamamos a função mas não retornamos o seu resultado (que é uma Promise)
-      unsubscribe();
-    };
+    const unsubscribe = api.subscribeToChanges(() => loadData(true));
+    return () => { unsubscribe(); };
   }, [loadData]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
-    return () => {
-      clearInterval(timer);
-    };
+    return () => clearInterval(timer);
   }, []);
 
   const handleAdminLogin = (code: string) => {
@@ -106,17 +94,10 @@ const App: React.FC = () => {
       styleElement.id = styleId;
       document.head.appendChild(styleElement);
     }
-    
     styleElement.innerHTML = `
-      :root {
-        --primary-color: ${primaryColor};
-        --button-color: ${buttonColor};
-        --bg-color: ${backgroundColor};
-      }
-      body { background-color: var(--bg-color) !important; }
-      .bg-orange-500 { background-color: var(--primary-color) !important; }
-      .bg-orange-600 { background-color: var(--button-color) !important; }
-      .text-orange-500 { color: var(--primary-color) !important; }
+      :root { --primary-color: ${primaryColor}; --button-color: ${buttonColor}; --bg-color: ${backgroundColor}; }
+      body { background-color: var(--bg-color) !important; } .bg-orange-500 { background-color: var(--primary-color) !important; }
+      .bg-orange-600 { background-color: var(--button-color) !important; } .text-orange-500 { color: var(--primary-color) !important; }
       .border-orange-500 { border-color: var(--primary-color) !important; }
     `;
   }, [primaryColor, buttonColor, backgroundColor]);
@@ -124,9 +105,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-black text-white flex flex-col font-sans">
       {toast && (
-        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[999] px-6 py-3 rounded-xl shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300 font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 ${
-          toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-        }`}>
+        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[999] px-6 py-3 rounded-xl shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300 font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
           {toast.message}
         </div>
       )}
@@ -141,64 +120,19 @@ const App: React.FC = () => {
       
       <div className="container mx-auto px-4 max-w-5xl flex-grow">
         <div className="mt-4 flex justify-end">
-          <AdminAccess 
-            onLogin={handleAdminLogin} 
-            isAdmin={isAdmin} 
-            onGoToAdmin={() => setView('admin-dashboard')}
-            onLogout={() => { setIsAdmin(false); setView('home'); localStorage.removeItem('esqf_is_admin'); }}
-          />
+          <AdminAccess onLogin={handleAdminLogin} isAdmin={isAdmin} onGoToAdmin={() => setView('admin-dashboard')} onLogout={() => { setIsAdmin(false); setView('home'); localStorage.removeItem('esqf_is_admin'); }} />
         </div>
 
         {isLoading ? (
-          <div className="flex h-96 items-center justify-center">
-            <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-          </div>
+          <div className="flex h-96 items-center justify-center"><div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div></div>
         ) : (
           <main className="mt-4 pb-12">
-            {view === 'home' && (
-              <EventList 
-                events={events} 
-                products={products}
-                currentTime={currentTime}
-                onSelectEvent={async (id) => {
-                  const fullEvent = await api.fetchEventDetails(id).catch(() => null);
-                  if (fullEvent) {
-                    setSelectedEvent(fullEvent);
-                    setView('event-detail');
-                    window.scrollTo(0, 0);
-                  }
-                }}
-              />
-            )}
-
-            {view === 'event-detail' && selectedEvent && (
-              <EventDetail 
-                event={selectedEvent} 
-                currentTime={currentTime}
-                onBack={() => { setView('home'); setSelectedEvent(null); }}
-                onRegister={async (id, n, e) => {
-                  await api.register(id, n, e);
-                  showToast('Inscrição confirmada!', 'success');
-                  loadData(true);
-                }}
-              />
-            )}
-
+            {view === 'home' && <EventList events={events} products={products} currentTime={currentTime} onSelectEvent={async (id) => { const fullEvent = await api.fetchEventDetails(id).catch(() => null); if (fullEvent) { setSelectedEvent(fullEvent); setView('event-detail'); window.scrollTo(0, 0); } }} />}
+            {view === 'event-detail' && selectedEvent && <EventDetail event={selectedEvent} currentTime={currentTime} onBack={() => { setView('home'); setSelectedEvent(null); }} onRegister={async (id, n, e) => { await api.register(id, n, e); showToast('Inscrição confirmada!', 'success'); loadData(true); }} />}
             {view === 'admin-dashboard' && isAdmin && (
               <AdminPanel 
-                events={events}
-                products={products}
-                bannerUrl={homeBanner}
-                primaryColor={primaryColor}
-                buttonColor={buttonColor}
-                backgroundColor={backgroundColor}
-                onUpdateColors={async (p, b, bg) => { 
-                  await api.updateSetting('primary_color', p); 
-                  await api.updateSetting('button_color', b);
-                  await api.updateSetting('bg_color', bg);
-                  setPrimaryColor(p); setButtonColor(b); setBackgroundColor(bg);
-                  showToast('Cores salvas!', 'success');
-                }}
+                events={events} products={products} bannerUrl={homeBanner} primaryColor={primaryColor} buttonColor={buttonColor} backgroundColor={backgroundColor}
+                onUpdateColors={async (p, b, bg) => { await api.updateSetting('primary_color', p); await api.updateSetting('button_color', b); await api.updateSetting('bg_color', bg); setPrimaryColor(p); setButtonColor(b); setBackgroundColor(bg); showToast('Cores salvas!', 'success'); }}
                 onUpdateBanner={async (url) => { await api.updateSetting('home_banner', url); setHomeBanner(url); showToast('Banner atualizado!', 'success'); }}
                 onCreateEvent={async (e) => { await api.createEvent(e); loadData(true); showToast('Evento salvo!', 'success'); }}
                 onDeleteEvent={async (id) => { await api.deleteEvent(id); loadData(true); showToast('Evento excluído.'); }}

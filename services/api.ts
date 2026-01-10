@@ -1,9 +1,10 @@
 
 import { supabase } from '../lib/supabase.ts';
-import { Event, Product } from '../types.ts';
+import { Event, Product, Registrant } from '../types.ts';
 import { GoogleGenAI } from "@google/genai";
 
-// Inicialização da IA conforme as diretrizes do Google GenAI SDK
+const REGISTRANTS_PAGE_SIZE = 50;
+
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 const handleSupabaseError = (error: any, context: string): string => {
@@ -19,6 +20,13 @@ const safeDate = (dateVal: any): number => {
   return isNaN(d.getTime()) ? Date.now() : d.getTime();
 };
 
+const mapRegistrant = (reg: any): Registrant => ({
+  id: reg.id,
+  name: reg.name || 'Anônimo',
+  email: reg.email || '',
+  timestamp: safeDate(reg.created_at)
+});
+
 const mapEvent = (dbEvent: any): Event => ({
   id: dbEvent.id,
   name: dbEvent.name || 'Evento sem Nome',
@@ -27,12 +35,10 @@ const mapEvent = (dbEvent: any): Event => ({
   totalVacancies: Number(dbEvent.total_vacancies) || 0,
   openAt: safeDate(dbEvent.open_at),
   closedAt: safeDate(dbEvent.closed_at),
-  registrants: Array.isArray(dbEvent.registrations) ? dbEvent.registrations.map((reg: any) => ({
-    id: reg.id,
-    name: reg.name || 'Anônimo',
-    email: reg.email || '',
-    timestamp: safeDate(reg.created_at)
-  })) : []
+  registrantCount: dbEvent.registrations?.[0]?.count ?? 0,
+  registrants: Array.isArray(dbEvent.registrations) && dbEvent.registrations[0]?.count === undefined 
+    ? dbEvent.registrations.map(mapRegistrant) 
+    : []
 });
 
 export const api = {
@@ -53,10 +59,8 @@ export const api = {
   async uploadFile(file: File, bucketName: 'eventos' | 'produtos'): Promise<string> {
     const bucket = bucketName.toLowerCase();
     const fileName = `${Date.now()}-${file.name.replace(/\s/g, '_')}`;
-    
-    const { data, error } = await supabase.storage.from(bucket).upload(fileName, file);
+    const { error } = await supabase.storage.from(bucket).upload(fileName, file);
     if (error) throw new Error(handleSupabaseError(error, `upload.${bucket}`));
-    
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fileName);
     return urlData.publicUrl;
   },
@@ -64,9 +68,17 @@ export const api = {
   async fetchEvents(): Promise<Event[]> {
     const { data, error } = await supabase
       .from('events')
+      .select('*, registrations(count)')
+      .order('open_at', { ascending: true });
+    if (error) return [];
+    return (data || []).map(mapEvent);
+  },
+  
+  async fetchAdminEvents(): Promise<Event[]> {
+    const { data, error } = await supabase
+      .from('events')
       .select('*, registrations(*)')
       .order('open_at', { ascending: true });
-    
     if (error) return [];
     return (data || []).map(mapEvent);
   },
@@ -74,53 +86,45 @@ export const api = {
   async fetchEventDetails(eventId: string): Promise<Event> {
     const { data, error } = await supabase
       .from('events')
-      .select('*, registrations(*)')
+      .select('*, registrations(count)')
       .eq('id', eventId)
       .maybeSingle();
-    
     if (error) throw new Error(handleSupabaseError(error, 'fetchEventDetails'));
     if (!data) throw new Error("Evento não encontrado.");
     return mapEvent(data);
   },
 
-  async fetchProducts(): Promise<Product[]> {
+  async fetchRegistrants(eventId: string, page: number = 1): Promise<{ registrants: Registrant[], hasMore: boolean }> {
+    const from = (page - 1) * REGISTRANTS_PAGE_SIZE;
+    const to = from + REGISTRANTS_PAGE_SIZE - 1;
     const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
+      .from('registrations')
+      .select('id, name, email, created_at')
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: true })
+      .range(from, to);
+      
+    if (error) throw new Error(handleSupabaseError(error, 'fetchRegistrants'));
+    const registrants = (data || []).map(mapRegistrant);
+    return {
+      registrants,
+      hasMore: registrants.length === REGISTRANTS_PAGE_SIZE
+    };
+  },
+
+  async fetchProducts(): Promise<Product[]> {
+    const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     if (error) return [];
-    return (data || []).map(db => ({ 
-      id: db.id, 
-      name: db.name, 
-      images: Array.isArray(db.images) ? db.images : [], 
-      link: db.link, 
-      isActive: !!db.is_active 
-    }));
+    return (data || []).map(db => ({ id: db.id, name: db.name, images: Array.isArray(db.images) ? db.images : [], link: db.link, isActive: !!db.is_active }));
   },
 
   async upsertProduct(p: any): Promise<void> {
-    const { error } = await supabase.from('products').upsert({ 
-      id: p.id || undefined, 
-      name: p.name, 
-      images: p.images, 
-      link: p.link, 
-      is_active: p.isActive 
-    });
+    const { error } = await supabase.from('products').upsert({ id: p.id || undefined, name: p.name, images: p.images, link: p.link, is_active: p.isActive });
     if (error) throw new Error(handleSupabaseError(error, 'upsertProduct'));
   },
 
   async createEvent(event: any): Promise<void> {
-    const payload = { 
-      id: event.id || undefined,
-      name: event.name, 
-      description: event.description, 
-      image_url: event.imageUrl, 
-      total_vacancies: event.total_vacancies || event.vagas || event.totalVacancies, 
-      open_at: new Date(event.openAt).toISOString(), 
-      closed_at: new Date(event.closedAt).toISOString() 
-    };
-
+    const payload = { id: event.id || undefined, name: event.name, description: event.description, image_url: event.imageUrl, total_vacancies: event.total_vacancies || event.vagas || event.totalVacancies, open_at: new Date(event.openAt).toISOString(), closed_at: new Date(event.closedAt).toISOString() };
     const { error } = await supabase.from('events').upsert(payload);
     if (error) throw new Error(handleSupabaseError(error, 'saveEvent'));
   },
