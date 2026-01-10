@@ -11,7 +11,7 @@ interface EventCardProps {
 const EventCard: React.FC<EventCardProps> = ({ event, currentTime, onSelect }) => {
   const isAfterOpen = currentTime >= event.openAt;
   const isFinished = currentTime > event.closedAt;
-  const vacanciesLeft = event.totalVacancies - event.registrants.length;
+  const vacanciesLeft = Math.max(0, event.totalVacancies - (event.registrants?.length || 0));
   const isFull = vacanciesLeft <= 0;
 
   let status = EventStatus.CLOSED;
@@ -35,22 +35,30 @@ const EventCard: React.FC<EventCardProps> = ({ event, currentTime, onSelect }) =
   }
 
   const formatPeriod = (start: number, end: number) => {
-    const f = (ts: number) => new Intl.DateTimeFormat('pt-BR', {
-      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-    }).format(new Date(ts)).replace(',', ' às');
-    
-    return { start: f(start), end: f(end) };
+    try {
+      const f = (ts: number) => {
+        if (!ts || isNaN(ts)) return '--/--';
+        const date = new Date(ts);
+        return new Intl.DateTimeFormat('pt-BR', {
+          day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+        }).format(date).replace(',', ' às');
+      };
+      return { start: f(start), end: f(end) };
+    } catch (e) {
+      return { start: 'Erro na data', end: 'Erro na data' };
+    }
   };
 
   const period = formatPeriod(event.openAt, event.closedAt);
 
   return (
     <div className={`flex flex-col bg-zinc-950 border border-zinc-900 rounded-[2.5rem] overflow-hidden transition-all duration-500 hover:border-zinc-700 hover:shadow-2xl h-full ${isFinished ? 'opacity-70 grayscale-[50%]' : ''}`}>
-      <div className="relative aspect-video overflow-hidden">
+      <div className="relative aspect-video overflow-hidden bg-zinc-900">
         <img 
           src={event.imageUrl} 
           alt={event.name}
           className={`w-full h-full object-cover transition-all duration-1000 ${!isAfterOpen ? 'grayscale opacity-30 scale-110' : 'grayscale-[20%]'}`}
+          onError={(e) => (e.currentTarget.style.opacity = '0')}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
         <div className={`absolute top-4 right-4 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border backdrop-blur-md z-10 ${statusClasses}`}>
@@ -62,7 +70,6 @@ const EventCard: React.FC<EventCardProps> = ({ event, currentTime, onSelect }) =
         <div className="mb-6">
           <h3 className="text-2xl font-black uppercase tracking-tighter leading-tight mb-3 transition-colors">{event.name}</h3>
           
-          {/* Badge Unificado de Período */}
           <div className="inline-flex flex-col bg-zinc-900/50 border border-zinc-800 rounded-2xl p-3 mb-4 w-full">
             <span className="text-[7px] font-black text-zinc-600 uppercase tracking-widest mb-2 flex items-center gap-1">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>

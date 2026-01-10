@@ -14,24 +14,28 @@ const App: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [homeBanner, setHomeBanner] = useState<string | null>(null);
-  const [primaryColor, setPrimaryColor] = useState('#f97316'); // Default orange-500
-  const [buttonColor, setButtonColor] = useState('#ea580c'); // Default orange-600
-  const [backgroundColor, setBackgroundColor] = useState('#000000'); // Default black
+  const [primaryColor, setPrimaryColor] = useState('#f97316');
+  const [buttonColor, setButtonColor] = useState('#ea580c');
+  const [backgroundColor, setBackgroundColor] = useState('#000000');
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('esqf_is_admin') === 'true');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [toast, setToast] = useState<{message: string, type: 'error' | 'success'} | null>(null);
 
-  const showToast = (message: string, type: 'error' | 'success' = 'error') => {
+  const showToast = useCallback((message: string, type: 'error' | 'success' = 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 5000);
-  };
+  }, []);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setIsLoading(true);
     try {
       const { connected } = await checkConnection();
-      if (!connected) return;
+      if (!connected) {
+        if (!isSilent) showToast('Falha na conexão com o banco de dados.', 'error');
+        return;
+      }
       
       const [eventsData, bannerData, productsData, pColor, bColor, bgColor] = await Promise.all([
         api.fetchEvents(),
@@ -49,20 +53,25 @@ const App: React.FC = () => {
       if (bColor) setButtonColor(bColor);
       if (bgColor) setBackgroundColor(bgColor);
 
+      // Atualiza o evento selecionado se estiver em detalhes
       if (selectedEvent) {
-        const updatedDetail = await api.fetchEventDetails(selectedEvent.id);
-        setSelectedEvent(updatedDetail);
+        try {
+          const updatedDetail = await api.fetchEventDetails(selectedEvent.id);
+          setSelectedEvent(updatedDetail);
+        } catch (e) {
+          console.warn("Evento selecionado não encontrado durante recarregamento.");
+        }
       }
     } catch (error: any) {
-      console.error(error);
+      console.error("App: Erro ao carregar dados:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [selectedEvent?.id]);
+  }, [selectedEvent?.id, showToast]);
 
   useEffect(() => {
     loadData();
-    const unsubscribe = api.subscribeToChanges(() => loadData());
+    const unsubscribe = api.subscribeToChanges(() => loadData(true));
     return () => unsubscribe();
   }, [loadData]);
 
@@ -75,14 +84,14 @@ const App: React.FC = () => {
     if (code === '3590') {
       setIsAdmin(true);
       setView('admin-dashboard');
-      showToast('Bem-vindo!', 'success');
+      showToast('Painel administrativo liberado.', 'success');
       localStorage.setItem('esqf_is_admin', 'true');
       return true;
     }
     return false;
   };
 
-  // Dynamic Theme Injection
+  // Injeção de Tema Dinâmico com Fallbacks de Segurança
   useEffect(() => {
     const styleId = 'dynamic-theme';
     let styleElement = document.getElementById(styleId);
@@ -92,11 +101,15 @@ const App: React.FC = () => {
       document.head.appendChild(styleElement);
     }
     
+    const p = primaryColor || '#f97316';
+    const b = buttonColor || '#ea580c';
+    const bg = backgroundColor || '#000000';
+
     styleElement.innerHTML = `
       :root {
-        --primary-color: ${primaryColor};
-        --button-color: ${buttonColor};
-        --bg-color: ${backgroundColor};
+        --primary-color: ${p};
+        --button-color: ${b};
+        --bg-color: ${bg};
       }
       body { background-color: var(--bg-color) !important; }
       .bg-black { background-color: var(--bg-color) !important; }
@@ -107,15 +120,14 @@ const App: React.FC = () => {
       .border-orange-600 { border-color: var(--button-color) !important; }
       .hover\\:bg-orange-500:hover { background-color: var(--primary-color) !important; opacity: 0.9; }
       .hover\\:text-orange-500:hover { color: var(--primary-color) !important; }
-      .shadow-orange-900\\/20 { shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-      .selection\\:bg-orange-500\\/30::selection { background-color: ${primaryColor}4D !important; }
+      .shadow-orange-900\\/20 { box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); }
     `;
   }, [primaryColor, buttonColor, backgroundColor]);
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col font-sans selection:bg-orange-500/30 selection:text-orange-500">
       {toast && (
-        <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[200] px-6 py-4 rounded-2xl border shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 font-bold text-xs uppercase tracking-widest flex items-center gap-3 ${
+        <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[300] px-6 py-4 rounded-2xl border shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 font-bold text-xs uppercase tracking-widest flex items-center gap-3 ${
           toast.type === 'success' ? 'bg-green-600 border-green-500 text-white' : 'bg-red-900 border-red-700 text-white'
         }`}>
           <span>{toast.type === 'success' ? '✓' : '⚠'}</span>
@@ -123,10 +135,14 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Banner Principal - Ajustado para 16:5 (1920x600px) */}
       {view === 'home' && homeBanner && !isLoading && (
-        <div className="w-[75%] mx-auto mt-6 relative overflow-hidden shadow-2xl border border-zinc-900 rounded-[2.5rem] aspect-[16/5] animate-in fade-in duration-700">
-          <img src={homeBanner} alt="Banner Principal" className="w-full h-full object-cover" />
+        <div className="w-[75%] mx-auto mt-6 relative overflow-hidden shadow-2xl border border-zinc-900 rounded-[2.5rem] aspect-[16/5] animate-in fade-in duration-700 bg-zinc-900">
+          <img 
+            src={homeBanner} 
+            alt="Banner Principal" 
+            className="w-full h-full object-cover" 
+            onError={(e) => e.currentTarget.style.display = 'none'}
+          />
         </div>
       )}
 
@@ -143,7 +159,7 @@ const App: React.FC = () => {
         </div>
 
         {isLoading ? (
-          <div className="flex h-64 items-center justify-center animate-pulse">
+          <div className="flex h-64 items-center justify-center">
             <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : (
@@ -154,9 +170,13 @@ const App: React.FC = () => {
                 products={products}
                 currentTime={currentTime}
                 onSelectEvent={async (id) => {
-                  const fullEvent = await api.fetchEventDetails(id);
-                  setSelectedEvent(fullEvent);
-                  setView('event-detail');
+                  try {
+                    const fullEvent = await api.fetchEventDetails(id);
+                    setSelectedEvent(fullEvent);
+                    setView('event-detail');
+                  } catch (e: any) {
+                    showToast(e.message || "Erro ao carregar detalhes.", "error");
+                  }
                 }}
               />
             )}
@@ -168,7 +188,7 @@ const App: React.FC = () => {
                 onBack={() => { setView('home'); setSelectedEvent(null); }}
                 onRegister={async (id, n, e) => {
                   await api.register(id, n, e);
-                  showToast('Vaga garantida!', 'success');
+                  showToast('Inscrição confirmada!', 'success');
                 }}
               />
             )}
@@ -188,15 +208,15 @@ const App: React.FC = () => {
                   setPrimaryColor(p); setButtonColor(b); setBackgroundColor(bg);
                   showToast('Cores atualizadas!', 'success');
                 }}
-                onUpdateBanner={async (b) => { await api.updateSetting('home_banner', b); loadData(); }}
-                onCreateEvent={async (e) => { await api.createEvent(e); loadData(); }}
+                onUpdateBanner={async (b) => { await api.updateSetting('home_banner', b); loadData(true); }}
+                onCreateEvent={async (e) => { await api.createEvent(e); loadData(true); }}
                 onDeleteEvent={async (id) => { 
                   await api.deleteEvent(id); 
-                  await loadData(); 
-                  showToast('Evento excluído com sucesso!', 'success');
+                  await loadData(true); 
+                  showToast('Evento removido.', 'success');
                 }}
-                onUpsertProduct={async (p) => { await api.upsertProduct(p); loadData(); showToast('Produto salvo!', 'success'); }}
-                onDeleteProduct={async (id) => { await api.deleteProduct(id); loadData(); showToast('Produto removido.'); }}
+                onUpsertProduct={async (p) => { await api.upsertProduct(p); loadData(true); showToast('Produto atualizado.', 'success'); }}
+                onDeleteProduct={async (id) => { await api.deleteProduct(id); loadData(true); showToast('Produto removido.'); }}
                 onBack={() => setView('home')}
               />
             )}
