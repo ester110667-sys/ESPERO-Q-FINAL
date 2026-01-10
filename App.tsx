@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { ViewState, Event } from './types';
-import { getEvents, saveEvents } from './utils/storage';
-import Header from './components/Header';
-import AdminAccess from './components/AdminAccess';
-import EventList from './components/EventList';
-import EventDetail from './components/EventDetail';
-import AdminPanel from './components/AdminPanel';
+import { ViewState, Event } from './types.ts';
+import { getEvents, saveEvents } from './utils/storage.ts';
+import Header from './components/Header.tsx';
+import AdminAccess from './components/AdminAccess.tsx';
+import EventList from './components/EventList.tsx';
+import EventDetail from './components/EventDetail.tsx';
+import AdminPanel from './components/AdminPanel.tsx';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('home');

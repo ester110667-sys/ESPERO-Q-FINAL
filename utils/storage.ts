@@ -1,5 +1,5 @@
 
-import { Event } from '../types';
+import { Event } from '../types.ts';
 
 const STORAGE_KEY = 'esqf_events_data';
 const USER_REGISTRATIONS_KEY = 'esqf_my_registrations';
