@@ -198,7 +198,7 @@ const App: React.FC = () => {
               {view === 'admin-dashboard' && isAdmin && (
                 <div className="animate-in fade-in zoom-in-95 duration-300">
                   <AdminPanel 
-                    events={events} products={products} bannerUrl={homeBanner} primaryColor={colors.primary} buttonColor={colors.button} backgroundColor={colors.bg}
+                    products={products} bannerUrl={homeBanner} primaryColor={colors.primary} buttonColor={colors.button} backgroundColor={colors.bg}
                     onUpdateColors={async (p, b, bg) => { 
                       await Promise.all([api.updateSetting('primary_color', p), api.updateSetting('button_color', b), api.updateSetting('bg_color', bg)]);
                       setColors({ primary: p, button: b, bg });
