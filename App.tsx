@@ -66,8 +66,13 @@ const App: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    const unsubscribe = api.subscribeToChanges(() => loadData(true));
-    return () => unsubscribe();
+    const unsubscribe = api.subscribeToChanges(() => {
+      loadData(true);
+    });
+    // Corrigido: envolto em chaves para garantir que retorne void e não a Promise do unsubscribe
+    return () => {
+      unsubscribe();
+    };
   }, [loadData]);
 
   useEffect(() => {
