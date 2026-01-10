@@ -23,8 +23,8 @@ const Header: React.FC<HeaderProps> = ({ onLogoClick }) => {
             <span className="text-xl font-black tracking-tighter text-white">
               VAGAS <span className="text-orange-500">ESQF</span>
             </span>
-            <span className="text-[9px] tracking-[0.3em] font-bold text-gray-500 uppercase">
-              Eu Só Quero Fotografar
+            <span className="text-[10px] tracking-[0.4em] font-black text-orange-500 uppercase">
+              EUSOQUEROFOTOGRAFAR
             </span>
           </div>
         </button>

@@ -12,9 +12,17 @@ export interface Event {
   description: string;
   imageUrl: string;
   totalVacancies: number;
-  openAt: number; // Timestamp abertura
-  closedAt: number; // Timestamp encerramento
+  openAt: number;
+  closedAt: number;
   registrants: Registrant[];
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  images: string[]; // URLs do Supabase Storage
+  link: string;
+  isActive: boolean;
 }
 
 export type ViewState = 'home' | 'event-detail' | 'admin-dashboard';
