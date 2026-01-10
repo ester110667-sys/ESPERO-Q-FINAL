@@ -65,19 +65,26 @@ const App: React.FC = () => {
   }, [selectedEvent, showToast]);
 
   useEffect(() => {
+    // Carrega dados iniciais
     loadData();
+    
+    // Configura inscrição em tempo real
     const unsubscribe = api.subscribeToChanges(() => {
       loadData(true);
     });
-    // Corrigido: envolto em chaves para garantir que retorne void e não a Promise do unsubscribe
+
+    // Cleanup síncrono exigido pelo React/TypeScript
     return () => {
+      // Chamamos a função mas não retornamos o seu resultado (que é uma Promise)
       unsubscribe();
     };
   }, [loadData]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+    };
   }, []);
 
   const handleAdminLogin = (code: string) => {
