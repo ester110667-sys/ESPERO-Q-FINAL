@@ -81,6 +81,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  const handleRemoveEvent = async (id: string) => {
+    if (!window.confirm('CUIDADO: Isso removerá o evento e TODOS os inscritos. Deseja continuar?')) return;
+    setIsDeletingId(id);
+    try {
+      await onDeleteEvent(id);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsDeletingId(null);
+    }
+  };
+
+  const getFormattedList = (ev: Event) => {
+    const header = `Evento: ${ev.name}\n`;
+    const list = ev.registrants
+      .map((reg, idx) => `${idx + 1}. ${reg.name} – ${reg.email}`)
+      .join('\n');
+    return header + (list || "Nenhum inscrito ainda.");
+  };
+
+  const copyRegistrantsList = (ev: Event) => {
+    const fullText = getFormattedList(ev);
+    navigator.clipboard.writeText(fullText).then(() => {
+      alert('Lista copiada!');
+    }).catch(err => {
+      console.error('Erro ao copiar:', err);
+      alert('Erro ao copiar lista.');
+    });
+  };
+
   const editEvent = (ev: Event) => {
     const o = new Date(ev.openAt);
     const c = new Date(ev.closedAt);
@@ -189,20 +219,50 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             </form>
           </section>
           
-          <div className="grid gap-4">
+          <div className="grid gap-8">
             <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-700 ml-4">Eventos Existentes</h3>
             {events.map(ev => (
-              <div key={ev.id} className="bg-zinc-950 border border-zinc-900 p-5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 group hover:border-zinc-700 transition-all">
-                <div className="flex items-center gap-4 w-full sm:w-auto">
-                  <img src={ev.imageUrl} className="w-12 h-12 rounded-lg object-cover border border-zinc-800" />
-                  <div>
-                    <p className="text-[10px] font-black uppercase text-white">{ev.name}</p>
-                    <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest">{ev.registrants.length} / {ev.totalVacancies} vagas ocupadas</p>
+              <div key={ev.id} className="space-y-4">
+                <div className="bg-zinc-950 border border-zinc-900 p-5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 group hover:border-zinc-700 transition-all">
+                  <div className="flex items-center gap-4 w-full sm:w-auto">
+                    <img src={ev.imageUrl} className="w-12 h-12 rounded-lg object-cover border border-zinc-800" />
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-white">{ev.name}</p>
+                      <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest">{ev.registrants.length} / {ev.totalVacancies} vagas ocupadas</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-center sm:justify-end">
+                    <button onClick={() => copyRegistrantsList(ev)} className="flex-1 sm:flex-none px-4 py-2 bg-orange-600/10 hover:bg-orange-600 text-orange-500 hover:text-white rounded-xl text-[9px] font-black uppercase border border-orange-500/20 transition-all">
+                      Copiar Lista
+                    </button>
+                    <button onClick={() => editEvent(ev)} className="flex-1 sm:flex-none px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl text-[9px] font-black uppercase transition-all">Editar</button>
+                    <button onClick={() => handleRemoveEvent(ev.id)} disabled={isDeletingId === ev.id} className="flex-1 sm:flex-none px-4 py-2 bg-red-900/10 hover:bg-red-600 text-red-500 hover:text-white rounded-xl text-[9px] font-black uppercase border border-red-900/20 transition-all disabled:opacity-50">
+                      {isDeletingId === ev.id ? '...' : 'Excluir'}
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <button onClick={() => editEvent(ev)} className="flex-1 sm:flex-none px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl text-[9px] font-black uppercase transition-all">Editar</button>
-                  <button onClick={() => onDeleteEvent(ev.id)} className="flex-1 sm:flex-none px-4 py-2 bg-red-900/10 hover:bg-red-600 text-red-500 hover:text-white rounded-xl text-[9px] font-black uppercase border border-red-900/20 transition-all">Excluir</button>
+
+                {/* Lista sempre visível abaixo do evento */}
+                <div className="mx-2 sm:mx-6 p-6 bg-zinc-900/20 border border-zinc-800/50 rounded-2xl">
+                  <div className="flex justify-between items-center mb-4 border-b border-zinc-800 pb-3">
+                    <p className="text-[10px] font-black uppercase text-zinc-500">Evento: {ev.name}</p>
+                    <span className="text-[8px] font-bold text-orange-500 uppercase tracking-widest bg-orange-500/10 px-2 py-0.5 rounded-md">Total: {ev.registrants.length}</span>
+                  </div>
+                  <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
+                    {ev.registrants.length === 0 ? (
+                      <p className="text-[10px] text-zinc-700 italic font-medium">Nenhum fotógrafo inscrito até o momento.</p>
+                    ) : (
+                      ev.registrants.map((reg, idx) => (
+                        <div key={reg.id} className="flex items-center justify-between gap-3 text-[10px] py-1 hover:bg-zinc-800/50 rounded px-2 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <span className="text-zinc-700 font-black w-4">{idx + 1}.</span>
+                            <span className="text-zinc-300 font-bold uppercase">{reg.name}</span>
+                          </div>
+                          <span className="text-zinc-500 font-mono text-[9px]">{reg.email}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
