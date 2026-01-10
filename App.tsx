@@ -25,7 +25,7 @@ const App: React.FC = () => {
 
   const showToast = useCallback((message: string, type: 'error' | 'success' = 'error') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 5000);
+    setTimeout(() => setToast(null), 4000);
   }, []);
 
   const loadData = useCallback(async (isSilent = false) => {
@@ -33,7 +33,7 @@ const App: React.FC = () => {
     try {
       const { connected } = await checkConnection();
       if (!connected) {
-        if (!isSilent) showToast('Falha na conexão com o banco de dados.', 'error');
+        if (!isSilent) showToast('Falha na conexão com o banco.', 'error');
         return;
       }
       
@@ -53,21 +53,16 @@ const App: React.FC = () => {
       if (bColor) setButtonColor(bColor);
       if (bgColor) setBackgroundColor(bgColor);
 
-      // Atualiza o evento selecionado se estiver em detalhes
       if (selectedEvent) {
-        try {
-          const updatedDetail = await api.fetchEventDetails(selectedEvent.id);
-          setSelectedEvent(updatedDetail);
-        } catch (e) {
-          console.warn("Evento selecionado não encontrado durante recarregamento.");
-        }
+        const updatedDetail = await api.fetchEventDetails(selectedEvent.id).catch(() => null);
+        if (updatedDetail) setSelectedEvent(updatedDetail);
       }
-    } catch (error: any) {
-      console.error("App: Erro ao carregar dados:", error);
+    } catch (error) {
+      console.error("Erro no carregamento do App:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [selectedEvent?.id, showToast]);
+  }, [selectedEvent, showToast]);
 
   useEffect(() => {
     loadData();
@@ -84,14 +79,13 @@ const App: React.FC = () => {
     if (code === '3590') {
       setIsAdmin(true);
       setView('admin-dashboard');
-      showToast('Painel administrativo liberado.', 'success');
+      showToast('Bem-vindo, Admin!', 'success');
       localStorage.setItem('esqf_is_admin', 'true');
       return true;
     }
     return false;
   };
 
-  // Injeção de Tema Dinâmico com Fallbacks de Segurança
   useEffect(() => {
     const styleId = 'dynamic-theme';
     let styleElement = document.getElementById(styleId);
@@ -101,55 +95,40 @@ const App: React.FC = () => {
       document.head.appendChild(styleElement);
     }
     
-    const p = primaryColor || '#f97316';
-    const b = buttonColor || '#ea580c';
-    const bg = backgroundColor || '#000000';
-
     styleElement.innerHTML = `
       :root {
-        --primary-color: ${p};
-        --button-color: ${b};
-        --bg-color: ${bg};
+        --primary-color: ${primaryColor};
+        --button-color: ${buttonColor};
+        --bg-color: ${backgroundColor};
       }
       body { background-color: var(--bg-color) !important; }
-      .bg-black { background-color: var(--bg-color) !important; }
-      .text-orange-500 { color: var(--primary-color) !important; }
       .bg-orange-500 { background-color: var(--primary-color) !important; }
       .bg-orange-600 { background-color: var(--button-color) !important; }
+      .text-orange-500 { color: var(--primary-color) !important; }
       .border-orange-500 { border-color: var(--primary-color) !important; }
-      .border-orange-600 { border-color: var(--button-color) !important; }
-      .hover\\:bg-orange-500:hover { background-color: var(--primary-color) !important; opacity: 0.9; }
-      .hover\\:text-orange-500:hover { color: var(--primary-color) !important; }
-      .shadow-orange-900\\/20 { box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); }
     `;
   }, [primaryColor, buttonColor, backgroundColor]);
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col font-sans selection:bg-orange-500/30 selection:text-orange-500">
+    <div className="min-h-screen bg-black text-white flex flex-col font-sans">
       {toast && (
-        <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[300] px-6 py-4 rounded-2xl border shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 font-bold text-xs uppercase tracking-widest flex items-center gap-3 ${
-          toast.type === 'success' ? 'bg-green-600 border-green-500 text-white' : 'bg-red-900 border-red-700 text-white'
+        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[999] px-6 py-3 rounded-xl shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300 font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 ${
+          toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
         }`}>
-          <span>{toast.type === 'success' ? '✓' : '⚠'}</span>
           {toast.message}
         </div>
       )}
 
       {view === 'home' && homeBanner && !isLoading && (
-        <div className="w-[75%] mx-auto mt-6 relative overflow-hidden shadow-2xl border border-zinc-900 rounded-[2.5rem] aspect-[16/5] animate-in fade-in duration-700 bg-zinc-900">
-          <img 
-            src={homeBanner} 
-            alt="Banner Principal" 
-            className="w-full h-full object-cover" 
-            onError={(e) => e.currentTarget.style.display = 'none'}
-          />
+        <div className="w-[90%] sm:w-[75%] mx-auto mt-6 relative overflow-hidden shadow-2xl rounded-[2rem] sm:rounded-[2.5rem] aspect-[16/6] sm:aspect-[16/5] bg-zinc-900 border border-white/5">
+          <img src={homeBanner} alt="Banner" className="w-full h-full object-cover" />
         </div>
       )}
 
       <Header onLogoClick={() => { setView('home'); setSelectedEvent(null); }} />
       
       <div className="container mx-auto px-4 max-w-5xl flex-grow">
-        <div className="mt-6 flex justify-end">
+        <div className="mt-4 flex justify-end">
           <AdminAccess 
             onLogin={handleAdminLogin} 
             isAdmin={isAdmin} 
@@ -159,23 +138,22 @@ const App: React.FC = () => {
         </div>
 
         {isLoading ? (
-          <div className="flex h-64 items-center justify-center">
-            <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="flex h-96 items-center justify-center">
+            <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : (
-          <main className="mt-6">
+          <main className="mt-4 pb-12">
             {view === 'home' && (
               <EventList 
                 events={events} 
                 products={products}
                 currentTime={currentTime}
                 onSelectEvent={async (id) => {
-                  try {
-                    const fullEvent = await api.fetchEventDetails(id);
+                  const fullEvent = await api.fetchEventDetails(id).catch(() => null);
+                  if (fullEvent) {
                     setSelectedEvent(fullEvent);
                     setView('event-detail');
-                  } catch (e: any) {
-                    showToast(e.message || "Erro ao carregar detalhes.", "error");
+                    window.scrollTo(0, 0);
                   }
                 }}
               />
@@ -189,6 +167,7 @@ const App: React.FC = () => {
                 onRegister={async (id, n, e) => {
                   await api.register(id, n, e);
                   showToast('Inscrição confirmada!', 'success');
+                  loadData(true);
                 }}
               />
             )}
@@ -206,16 +185,12 @@ const App: React.FC = () => {
                   await api.updateSetting('button_color', b);
                   await api.updateSetting('bg_color', bg);
                   setPrimaryColor(p); setButtonColor(b); setBackgroundColor(bg);
-                  showToast('Cores atualizadas!', 'success');
+                  showToast('Cores salvas!', 'success');
                 }}
-                onUpdateBanner={async (b) => { await api.updateSetting('home_banner', b); loadData(true); }}
-                onCreateEvent={async (e) => { await api.createEvent(e); loadData(true); }}
-                onDeleteEvent={async (id) => { 
-                  await api.deleteEvent(id); 
-                  await loadData(true); 
-                  showToast('Evento removido.', 'success');
-                }}
-                onUpsertProduct={async (p) => { await api.upsertProduct(p); loadData(true); showToast('Produto atualizado.', 'success'); }}
+                onUpdateBanner={async (url) => { await api.updateSetting('home_banner', url); setHomeBanner(url); showToast('Banner atualizado!', 'success'); }}
+                onCreateEvent={async (e) => { await api.createEvent(e); loadData(true); showToast('Evento salvo!', 'success'); }}
+                onDeleteEvent={async (id) => { await api.deleteEvent(id); loadData(true); showToast('Evento excluído.'); }}
+                onUpsertProduct={async (p) => { await api.upsertProduct(p); loadData(true); showToast('Produto salvo!', 'success'); }}
                 onDeleteProduct={async (id) => { await api.deleteProduct(id); loadData(true); showToast('Produto removido.'); }}
                 onBack={() => setView('home')}
               />
@@ -224,11 +199,9 @@ const App: React.FC = () => {
         )}
       </div>
 
-      <footer className="py-12 text-center border-t border-zinc-900 mt-20">
-        <div className="container mx-auto px-4">
-          <p className="text-orange-500 text-[11px] font-black uppercase tracking-[0.5em] mb-2">EUSOQUEROFOTOGRAFAR</p>
-          <p className="text-zinc-800 text-[9px] font-bold uppercase tracking-widest">© VAGAS ESQF • 2025</p>
-        </div>
+      <footer className="py-12 text-center border-t border-white/5 bg-zinc-950/50 mt-12">
+        <p className="text-orange-500 text-[10px] font-black uppercase tracking-[0.4em] mb-1">EUSOQUEROFOTOGRAFAR</p>
+        <p className="text-zinc-700 text-[8px] font-bold uppercase tracking-widest">© 2025 • PROJETO VAGAS ESQF</p>
       </footer>
     </div>
   );
