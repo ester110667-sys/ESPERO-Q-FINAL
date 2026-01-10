@@ -1,8 +1,8 @@
-
 import React, { useState } from 'react';
 
 interface AdminAccessProps {
-  onLogin: (code: string) => boolean;
+  // Fix: changed onLogin type to support both synchronous and asynchronous (Promise) return values
+  onLogin: (code: string) => boolean | Promise<boolean>;
   isAdmin: boolean;
   onGoToAdmin: () => void;
   onLogout: () => void;
@@ -13,9 +13,11 @@ const AdminAccess: React.FC<AdminAccessProps> = ({ onLogin, isAdmin, onGoToAdmin
   const [code, setCode] = useState('');
   const [error, setError] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fix: made handleSubmit async and added await when calling onLogin to support async validation from parent
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (onLogin(code)) {
+    const success = await onLogin(code);
+    if (success) {
       setCode('');
       setError(false);
       setShowInput(false);

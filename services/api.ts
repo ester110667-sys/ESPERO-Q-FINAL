@@ -1,11 +1,8 @@
-
 import { supabase } from '../lib/supabase.ts';
 import { Event, Product, Registrant } from '../types.ts';
 import { GoogleGenAI } from "@google/genai";
 
 const REGISTRANTS_PAGE_SIZE = 50;
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 const handleSupabaseError = (error: any, context: string): string => {
   console.error(`Supabase Error [${context}]:`, error);
@@ -44,14 +41,13 @@ const mapEvent = (dbEvent: any): Event => ({
 export const api = {
   async generateAIDescription(title: string): Promise<string> {
     try {
-      if (!process.env.API_KEY) throw new Error("API Key missing");
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Você é um redator especializado em marketing para fotógrafos. Escreva uma descrição curta (máximo 250 caracteres), elegante e persuasiva para um evento chamado: "${title}".`,
       });
       return response.text?.trim() || 'Uma experiência fotográfica imperdível.';
     } catch (error) {
-      console.warn('IA indisponível ou erro de configuração:', error);
       return 'Participe deste evento exclusivo e eleve o nível da sua fotografia.';
     }
   },
@@ -95,8 +91,11 @@ export const api = {
   },
 
   async fetchRegistrants(eventId: string, page: number = 1): Promise<{ registrants: Registrant[], hasMore: boolean }> {
+    if (!eventId) return { registrants: [], hasMore: false };
+    
     const from = (page - 1) * REGISTRANTS_PAGE_SIZE;
     const to = from + REGISTRANTS_PAGE_SIZE - 1;
+    
     const { data, error } = await supabase
       .from('registrations')
       .select('id, name, email, created_at')
@@ -163,7 +162,7 @@ export const api = {
       .on('postgres_changes', { event: '*', schema: 'public' }, () => callback())
       .subscribe();
     return () => {
-      supabase.removeChannel(channel).catch(console.error);
+      supabase.removeChannel(channel).catch(() => {});
     };
   }
 };
