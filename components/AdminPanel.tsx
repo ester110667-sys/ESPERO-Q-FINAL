@@ -93,16 +93,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const getFormattedList = (ev: Event) => {
-    const header = `Evento: ${ev.name}\n`;
-    const list = ev.registrants
-      .map((reg, idx) => `${idx + 1}. ${reg.name} – ${reg.email}`)
-      .join('\n');
-    return header + (list || "Nenhum inscrito ainda.");
+  /**
+   * Gera a string formatada da lista de inscritos
+   */
+  const getFormattedListText = (ev: Event) => {
+    const header = `Evento: ${ev.name}\n\n`;
+    const list = ev.registrants.length > 0 
+      ? ev.registrants.map((reg, idx) => `${idx + 1}. ${reg.name} – ${reg.email}`).join('\n')
+      : 'Nenhum inscrito até o momento.';
+    return header + list;
   };
 
+  /**
+   * Copia a lista para o clipboard
+   */
   const copyRegistrantsList = (ev: Event) => {
-    const fullText = getFormattedList(ev);
+    const fullText = getFormattedListText(ev);
     navigator.clipboard.writeText(fullText).then(() => {
       alert('Lista copiada!');
     }).catch(err => {
@@ -128,11 +134,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const editProduct = (p: Product) => {
-    setPForm({ id: p.id, name: p.name, link: p.link, images: p.images, isActive: p.isActive });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   const resetForms = () => {
     setEForm({ id: '', name: '', desc: '', img: '', vagas: 10, openD: '', openT: '', closeD: '', closeT: '' });
     setPForm({ id: '', name: '', link: '', images: [], isActive: true });
@@ -140,6 +141,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-40">
+      {/* Header do Dashboard */}
       <div className="flex flex-col sm:flex-row justify-between items-center border-b border-zinc-900 pb-8 gap-6">
         <div className="flex flex-col items-center sm:items-start">
           <h1 className="text-3xl font-black uppercase tracking-tighter">Admin <span className="text-orange-500">Dashboard</span></h1>
@@ -150,7 +152,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
         <div className="flex bg-zinc-950 p-1.5 rounded-2xl border border-zinc-900">
           {(['events', 'products', 'designer'] as TabType[]).map(tab => (
-            <button key={tab} onClick={() => { setActiveTab(tab); resetForms(); }} className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-orange-600 text-white' : 'text-zinc-600'}`}>
+            <button 
+              key={tab} 
+              onClick={() => { setActiveTab(tab); resetForms(); }} 
+              className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-orange-600 text-white' : 'text-zinc-600'}`}
+            >
               {tab === 'events' ? 'Eventos' : tab === 'products' ? 'Produtos' : 'Designer'}
             </button>
           ))}
@@ -159,6 +165,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {activeTab === 'events' && (
         <div className="space-y-12">
+          {/* Formulário de Criação/Edição */}
           <section className="bg-zinc-950 border border-zinc-900 rounded-[2.5rem] p-8 sm:p-10 shadow-2xl">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-xl font-black uppercase">{eForm.id ? 'Editar' : 'Novo'} <span className="text-orange-500">Evento</span></h2>
@@ -175,6 +182,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 resetForms();
               } catch (err: any) { alert(err.message); } finally { setIsSaving(false); }
             }} className="grid gap-6">
+              {/* Upload de Imagem */}
               <div onClick={() => !isUploading && fileInputEvent.current?.click()} className="aspect-video bg-zinc-900 border-2 border-dashed border-zinc-800 rounded-3xl flex items-center justify-center cursor-pointer relative overflow-hidden transition-all hover:border-orange-500/50">
                 {eForm.img ? <img src={eForm.img} className="absolute inset-0 w-full h-full object-cover opacity-50" /> : <div className="flex flex-col items-center gap-2"><span className="text-zinc-700 font-black">IMAGEM DE CAPA</span><span className="text-[8px] text-zinc-800 font-bold uppercase tracking-widest">Clique para enviar</span></div>}
                 {isUploading && <div className="absolute inset-0 bg-black/60 flex items-center justify-center font-black text-[10px] animate-pulse">ENVIANDO...</div>}
@@ -190,9 +198,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </button>
               </div>
 
+              {/* Datas e Vagas */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[8px] font-black uppercase text-zinc-500 ml-2">Data e Hora de Abertura</label>
+                  <label className="text-[8px] font-black uppercase text-zinc-500 ml-2">Abertura</label>
                   <div className="grid grid-cols-2 gap-2">
                     <input type="date" value={eForm.openD} onChange={e => setEForm({...eForm, openD: e.target.value})} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-xs" />
                     <input type="time" value={eForm.openT} onChange={e => setEForm({...eForm, openT: e.target.value})} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-xs" />
@@ -206,7 +215,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[8px] font-black uppercase text-zinc-500 ml-2">Data e Hora de Fechamento</label>
+                  <label className="text-[8px] font-black uppercase text-zinc-500 ml-2">Fechamento</label>
                   <div className="grid grid-cols-2 gap-2">
                     <input type="date" value={eForm.closeD} onChange={e => setEForm({...eForm, closeD: e.target.value})} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-xs" />
                     <input type="time" value={eForm.closeT} onChange={e => setEForm({...eForm, closeT: e.target.value})} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-xs" />
@@ -219,46 +228,71 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             </form>
           </section>
           
-          <div className="grid gap-8">
+          {/* Listagem de Eventos e Suas Respectivas Listas de Inscritos */}
+          <div className="grid gap-12">
             <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-700 ml-4">Eventos Existentes</h3>
             {events.map(ev => (
-              <div key={ev.id} className="space-y-4">
-                <div className="bg-zinc-950 border border-zinc-900 p-5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 group hover:border-zinc-700 transition-all">
+              <div key={ev.id} className="space-y-4 group">
+                {/* Card de Controle do Evento */}
+                <div className="bg-zinc-950 border border-zinc-900 p-5 rounded-[2rem] flex flex-col sm:flex-row items-center justify-between gap-4 transition-all group-hover:border-zinc-700">
                   <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <img src={ev.imageUrl} className="w-12 h-12 rounded-lg object-cover border border-zinc-800" />
+                    <img src={ev.imageUrl} className="w-14 h-14 rounded-2xl object-cover border border-zinc-800 shadow-lg" />
                     <div>
-                      <p className="text-[10px] font-black uppercase text-white">{ev.name}</p>
-                      <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest">{ev.registrants.length} / {ev.totalVacancies} vagas ocupadas</p>
+                      <p className="text-[11px] font-black uppercase text-white leading-tight">{ev.name}</p>
+                      <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest mt-1">
+                        {ev.registrants.length} / {ev.totalVacancies} vagas ocupadas
+                      </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-center sm:justify-end">
-                    <button onClick={() => copyRegistrantsList(ev)} className="flex-1 sm:flex-none px-4 py-2 bg-orange-600/10 hover:bg-orange-600 text-orange-500 hover:text-white rounded-xl text-[9px] font-black uppercase border border-orange-500/20 transition-all">
+                  
+                  <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-center">
+                    <button 
+                      onClick={() => copyRegistrantsList(ev)} 
+                      className="flex-1 sm:flex-none px-5 py-2.5 bg-orange-600/10 hover:bg-orange-600 text-orange-500 hover:text-white rounded-xl text-[9px] font-black uppercase border border-orange-500/20 transition-all active:scale-95"
+                    >
                       Copiar Lista
                     </button>
-                    <button onClick={() => editEvent(ev)} className="flex-1 sm:flex-none px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl text-[9px] font-black uppercase transition-all">Editar</button>
-                    <button onClick={() => handleRemoveEvent(ev.id)} disabled={isDeletingId === ev.id} className="flex-1 sm:flex-none px-4 py-2 bg-red-900/10 hover:bg-red-600 text-red-500 hover:text-white rounded-xl text-[9px] font-black uppercase border border-red-900/20 transition-all disabled:opacity-50">
+                    <button 
+                      onClick={() => editEvent(ev)} 
+                      className="flex-1 sm:flex-none px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl text-[9px] font-black uppercase transition-all"
+                    >
+                      Editar
+                    </button>
+                    <button 
+                      onClick={() => handleRemoveEvent(ev.id)} 
+                      disabled={isDeletingId === ev.id}
+                      className="flex-1 sm:flex-none px-5 py-2.5 bg-red-900/10 hover:bg-red-600 text-red-500 hover:text-white rounded-xl text-[9px] font-black uppercase border border-red-900/20 transition-all disabled:opacity-50"
+                    >
                       {isDeletingId === ev.id ? '...' : 'Excluir'}
                     </button>
                   </div>
                 </div>
 
-                {/* Lista sempre visível abaixo do evento */}
-                <div className="mx-2 sm:mx-6 p-6 bg-zinc-900/20 border border-zinc-800/50 rounded-2xl">
-                  <div className="flex justify-between items-center mb-4 border-b border-zinc-800 pb-3">
-                    <p className="text-[10px] font-black uppercase text-zinc-500">Evento: {ev.name}</p>
-                    <span className="text-[8px] font-bold text-orange-500 uppercase tracking-widest bg-orange-500/10 px-2 py-0.5 rounded-md">Total: {ev.registrants.length}</span>
+                {/* Lista de Fotógrafos (Sempre Visível) */}
+                <div className="mx-2 sm:mx-8 bg-zinc-900/20 border border-zinc-800/40 rounded-[2.5rem] overflow-hidden shadow-inner">
+                  <div className="bg-zinc-900/40 px-8 py-4 border-b border-zinc-800/50 flex justify-between items-center">
+                    <h4 className="text-[10px] font-black uppercase text-zinc-400 tracking-widest flex items-center gap-2">
+                      <span className="w-1 h-3 bg-orange-500 rounded-full"></span>
+                      Evento: {ev.name}
+                    </h4>
+                    <span className="text-[8px] font-black text-orange-500 uppercase tracking-widest bg-orange-500/5 px-3 py-1 rounded-full border border-orange-500/10">
+                      {ev.registrants.length} inscritos
+                    </span>
                   </div>
-                  <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
+                  
+                  <div className="p-6 sm:p-8 space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar">
                     {ev.registrants.length === 0 ? (
-                      <p className="text-[10px] text-zinc-700 italic font-medium">Nenhum fotógrafo inscrito até o momento.</p>
+                      <div className="py-10 text-center">
+                        <p className="text-[10px] text-zinc-700 italic font-medium uppercase tracking-widest">Aguardando as primeiras inscrições...</p>
+                      </div>
                     ) : (
                       ev.registrants.map((reg, idx) => (
-                        <div key={reg.id} className="flex items-center justify-between gap-3 text-[10px] py-1 hover:bg-zinc-800/50 rounded px-2 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <span className="text-zinc-700 font-black w-4">{idx + 1}.</span>
-                            <span className="text-zinc-300 font-bold uppercase">{reg.name}</span>
+                        <div key={reg.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-black/20 rounded-xl border border-zinc-800/20 hover:border-zinc-700/50 transition-colors">
+                          <div className="flex items-center gap-4">
+                            <span className="text-[10px] font-black text-zinc-700 w-4">{idx + 1}.</span>
+                            <span className="text-[10px] font-black text-zinc-200 uppercase tracking-tight">{reg.name}</span>
                           </div>
-                          <span className="text-zinc-500 font-mono text-[9px]">{reg.email}</span>
+                          <span className="text-[9px] font-mono text-zinc-500 bg-zinc-900/50 px-3 py-1 rounded-lg border border-zinc-800/50">{reg.email}</span>
                         </div>
                       ))
                     )}
@@ -270,8 +304,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
+      {/* Outras abas permanecem iguais para manter estabilidade */}
       {activeTab === 'products' && (
         <div className="space-y-12">
+          {/* Implementação de Produtos conforme código original */}
           <section className="bg-zinc-950 border border-zinc-900 rounded-[2.5rem] p-10 shadow-2xl">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-xl font-black uppercase">{pForm.id ? 'Editar' : 'Novo'} <span className="text-orange-500">Produto</span></h2>
@@ -296,7 +332,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <input value={pForm.name} onChange={e => setPForm({...pForm, name: e.target.value})} placeholder="Nome Comercial" className="w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl font-bold outline-none focus:border-orange-500 transition-colors" />
-                <input value={pForm.link} onChange={e => setPForm({...pForm, link: e.target.value})} placeholder="Link de Pagamento (Hotmart/Stripe/Zap)" className="w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl font-bold outline-none focus:border-orange-500 transition-colors" />
+                <input value={pForm.link} onChange={e => setPForm({...pForm, link: e.target.value})} placeholder="Link de Pagamento" className="w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl font-bold outline-none focus:border-orange-500 transition-colors" />
               </div>
               <button type="submit" disabled={isSaving || pForm.images.length === 0} className="w-full bg-orange-600 hover:bg-orange-500 p-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all active:scale-95 disabled:opacity-30">
                 {isSaving ? 'SALVANDO...' : pForm.id ? 'ATUALIZAR PRODUTO' : 'LANÇAR PRODUTO'}
@@ -313,7 +349,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
                 <p className="text-[10px] font-black uppercase text-center truncate">{p.name}</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => editProduct(p)} className="bg-zinc-900 hover:bg-zinc-800 p-3 rounded-xl font-black text-[9px] uppercase transition-all">Editar</button>
+                  <button onClick={() => { setPForm({ id: p.id, name: p.name, link: p.link, images: p.images, isActive: p.isActive }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="bg-zinc-900 hover:bg-zinc-800 p-3 rounded-xl font-black text-[9px] uppercase transition-all">Editar</button>
                   <button onClick={() => onDeleteProduct(p.id)} className="bg-red-900/10 hover:bg-red-600 text-red-500 hover:text-white p-3 rounded-xl font-black text-[9px] uppercase transition-all">Remover</button>
                 </div>
               </div>
@@ -324,14 +360,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {activeTab === 'designer' && (
         <div className="space-y-12">
+          {/* Designer UI */}
           <section className="bg-zinc-950 border border-zinc-900 rounded-[2.5rem] p-10 shadow-2xl">
             <h2 className="text-xl font-black uppercase mb-8">Banner <span className="text-orange-500">Master</span></h2>
             <div onClick={() => !isUploading && fileInputBanner.current?.click()} className="aspect-[16/5] bg-zinc-900 border-2 border-dashed border-zinc-800 rounded-3xl flex items-center justify-center cursor-pointer relative overflow-hidden mb-6 transition-all hover:border-orange-500/50">
-              {bannerUrl ? <img src={bannerUrl} className="absolute inset-0 w-full h-full object-cover" /> : <span className="text-zinc-700 font-black uppercase text-[10px] tracking-widest">Enviar Novo Banner (1920x600)</span>}
-              {isUploading && <div className="absolute inset-0 bg-black/60 flex items-center justify-center font-black animate-pulse">ATUALIZANDO...</div>}
+              {bannerUrl ? <img src={bannerUrl} className="absolute inset-0 w-full h-full object-cover" /> : <span className="text-zinc-700 font-black uppercase text-[10px] tracking-widest">Enviar Novo Banner</span>}
+              {isUploading && <div className="absolute inset-0 bg-black/60 flex items-center justify-center font-black animate-pulse uppercase text-[10px]">Atualizando...</div>}
               <input type="file" ref={fileInputBanner} className="hidden" accept="image/*" onChange={async e => { const f = e.target.files?.[0]; if(f) { const url = await handleFileUpload(f, 'eventos'); if(url) onUpdateBanner(url); } }} />
             </div>
-            <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest text-center">Recomendado: Imagens em alta resolução para telas largas.</p>
           </section>
 
           <section className="bg-zinc-950 border border-zinc-900 rounded-[2.5rem] p-10 shadow-2xl">
