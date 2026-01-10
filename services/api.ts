@@ -3,14 +3,33 @@ import { supabase } from '../lib/supabase.ts';
 import { Event, Product } from '../types.ts';
 import { GoogleGenAI } from "@google/genai";
 
-// Inicialização da IA com a chave de ambiente injetada automaticamente
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Inicialização segura da IA usando padrões de ambiente do Vite e fallback para process.env
+const getApiKey = () => {
+  try {
+    // Tenta obter do process.env (definido via vite.config) ou do Vite import.meta.env
+    return (typeof process !== 'undefined' && process.env?.API_KEY) || 
+           (import.meta as any).env?.VITE_API_KEY || 
+           '';
+  } catch {
+    return '';
+  }
+};
+
+let ai: GoogleGenAI | null = null;
+const apiKey = getApiKey();
+
+if (apiKey) {
+  try {
+    ai = new GoogleGenAI({ apiKey });
+  } catch (e) {
+    console.error("Falha ao instanciar GoogleGenAI:", e);
+  }
+}
 
 const handleSupabaseError = (error: any, context: string): string => {
   console.error(`Supabase Error [${context}]:`, error);
   if (!error) return 'Erro desconhecido.';
-  if (error.code === '42501') return 'Erro de permissão (RLS). Verifique o console do Supabase.';
-  if (error.code === '23505') return 'Este registro já existe.';
+  if (error.code === '42501') return 'Erro de permissão (RLS).';
   return error.message || 'Erro na operação com o banco de dados.';
 };
 
@@ -37,18 +56,16 @@ const mapEvent = (dbEvent: any): Event => ({
 });
 
 export const api = {
-  /**
-   * Usa o Google Gemini para gerar descrições criativas para os eventos
-   */
   async generateAIDescription(title: string): Promise<string> {
+    if (!ai) return 'Participe deste evento exclusivo e eleve o nível da sua fotografia.';
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Você é um redator especializado em marketing para fotógrafos. Escreva uma descrição curta (máximo 250 caracteres), elegante e persuasiva para um evento chamado: "${title}". Use tom profissional e direto.`,
+        contents: `Você é um redator especializado em marketing para fotógrafos. Escreva uma descrição curta (máximo 250 caracteres), elegante e persuasiva para um evento chamado: "${title}".`,
       });
-      return response.text?.trim() || 'Prepare-se para uma experiência única.';
+      return response.text?.trim() || 'Uma experiência fotográfica imperdível.';
     } catch (error) {
-      console.warn('IA Temporariamente indisponível:', error);
+      console.warn('IA indisponível:', error);
       return 'Participe deste evento exclusivo e eleve o nível da sua fotografia.';
     }
   },
@@ -70,10 +87,7 @@ export const api = {
       .select('*, registrations(*)')
       .order('open_at', { ascending: true });
     
-    if (error) {
-      console.error("fetchEvents error:", error);
-      return [];
-    }
+    if (error) return [];
     return (data || []).map(mapEvent);
   },
 
@@ -122,7 +136,7 @@ export const api = {
       name: event.name, 
       description: event.description, 
       image_url: event.imageUrl, 
-      total_vacancies: event.totalVacancies, 
+      total_vacancies: event.total_vacancies || event.vagas || event.totalVacancies, 
       open_at: new Date(event.openAt).toISOString(), 
       closed_at: new Date(event.closedAt).toISOString() 
     };
@@ -132,7 +146,6 @@ export const api = {
   },
 
   async deleteEvent(id: string): Promise<void> {
-    // Primeiro removemos as inscrições para evitar erro de foreign key
     await supabase.from('registrations').delete().eq('event_id', id);
     const { error } = await supabase.from('events').delete().eq('id', id);
     if (error) throw new Error(handleSupabaseError(error, 'deleteEvent'));
@@ -165,6 +178,8 @@ export const api = {
     const channel = supabase.channel('realtime-db-esqf')
       .on('postgres_changes', { event: '*', schema: 'public' }, () => callback())
       .subscribe();
-    return () => supabase.removeChannel(channel);
+    return () => {
+      supabase.removeChannel(channel).catch(console.error);
+    };
   }
 };

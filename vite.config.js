@@ -2,13 +2,17 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  define: {
+    // Define apenas o necessário para evitar erros de 'process is not defined'
+    // e permite que a API_KEY seja injetada se estiver disponível no ambiente de build
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY || ''),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+  },
   build: {
-    // Aumenta o limite para 2MB para acomodar bibliotecas de IA sem avisos
     chunkSizeWarningLimit: 2000,
     minify: 'esbuild',
     rollupOptions: {
       output: {
-        // Função personalizada para garantir que cada biblioteca vá para seu próprio arquivo
         manualChunks(id) {
           if (id.includes('node_modules')) {
             if (id.includes('react')) return 'vendor-react';
@@ -16,10 +20,7 @@ export default defineConfig({
             if (id.includes('google/genai')) return 'vendor-ai';
             return 'vendor-libs';
           }
-        },
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
+        }
       }
     }
   },
