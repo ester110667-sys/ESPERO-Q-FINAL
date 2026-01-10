@@ -5,10 +5,9 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   define: {
-    // Define apenas o necessário para evitar erros de 'process is not defined'
-    // e permite que a API_KEY seja injetada se estiver disponível no ambiente de build
+    // Injeta a API_KEY para que esteja disponível como process.env.API_KEY no browser
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY || ''),
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
   },
   build: {
     chunkSizeWarningLimit: 2000,
@@ -18,16 +17,12 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules')) {
             if (id.includes('react')) return 'vendor-react';
-            if (id.includes('supabase')) return 'vendor-supabase';
-            if (id.includes('google/genai')) return 'vendor-ai';
+            if (id.includes('@supabase')) return 'vendor-supabase';
+            if (id.includes('@google/genai')) return 'vendor-ai';
             return 'vendor-libs';
           }
         }
       }
     }
-  },
-  server: {
-    host: true,
-    port: 5173
   }
 });

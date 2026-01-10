@@ -3,28 +3,8 @@ import { supabase } from '../lib/supabase.ts';
 import { Event, Product } from '../types.ts';
 import { GoogleGenAI } from "@google/genai";
 
-// Inicialização segura da IA usando padrões de ambiente do Vite e fallback para process.env
-const getApiKey = () => {
-  try {
-    // Tenta obter do process.env (definido via vite.config) ou do Vite import.meta.env
-    return (typeof process !== 'undefined' && process.env?.API_KEY) || 
-           (import.meta as any).env?.VITE_API_KEY || 
-           '';
-  } catch {
-    return '';
-  }
-};
-
-let ai: GoogleGenAI | null = null;
-const apiKey = getApiKey();
-
-if (apiKey) {
-  try {
-    ai = new GoogleGenAI({ apiKey });
-  } catch (e) {
-    console.error("Falha ao instanciar GoogleGenAI:", e);
-  }
-}
+// Inicialização da IA conforme as diretrizes do Google GenAI SDK
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 const handleSupabaseError = (error: any, context: string): string => {
   console.error(`Supabase Error [${context}]:`, error);
@@ -57,15 +37,15 @@ const mapEvent = (dbEvent: any): Event => ({
 
 export const api = {
   async generateAIDescription(title: string): Promise<string> {
-    if (!ai) return 'Participe deste evento exclusivo e eleve o nível da sua fotografia.';
     try {
+      if (!process.env.API_KEY) throw new Error("API Key missing");
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Você é um redator especializado em marketing para fotógrafos. Escreva uma descrição curta (máximo 250 caracteres), elegante e persuasiva para um evento chamado: "${title}".`,
       });
       return response.text?.trim() || 'Uma experiência fotográfica imperdível.';
     } catch (error) {
-      console.warn('IA indisponível:', error);
+      console.warn('IA indisponível ou erro de configuração:', error);
       return 'Participe deste evento exclusivo e eleve o nível da sua fotografia.';
     }
   },
