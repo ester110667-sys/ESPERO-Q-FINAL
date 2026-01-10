@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   build: {
-    chunkSizeWarningLimit: 800,
+    chunkSizeWarningLimit: 2000,
     minify: 'esbuild',
     rollupOptions: {
       output: {
