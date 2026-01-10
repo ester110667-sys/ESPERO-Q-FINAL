@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { ViewState, Event, Product } from './types.ts';
 import Header from './components/Header.tsx';
@@ -110,39 +109,48 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {view === 'home' && homeBanner && !isLoading && (
+      <Header onLogoClick={() => { setView('home'); setSelectedEvent(null); window.scrollTo(0,0); }} />
+
+      {view === 'home' && homeBanner && (
         <div className="w-[90%] sm:w-[75%] mx-auto mt-6 relative overflow-hidden shadow-2xl rounded-[2rem] sm:rounded-[2.5rem] aspect-[16/6] sm:aspect-[16/5] bg-zinc-900 border border-white/5">
-          <img src={homeBanner} alt="Banner" className="w-full h-full object-cover" />
+          <img src={homeBanner} alt="Banner" className="w-full h-full object-cover transition-opacity duration-700" onLoad={(e) => (e.currentTarget.style.opacity = '1')} style={{ opacity: 0 }} />
         </div>
       )}
-
-      <Header onLogoClick={() => { setView('home'); setSelectedEvent(null); }} />
       
       <div className="container mx-auto px-4 max-w-5xl flex-grow">
         <div className="mt-4 flex justify-end">
           <AdminAccess onLogin={handleAdminLogin} isAdmin={isAdmin} onGoToAdmin={() => setView('admin-dashboard')} onLogout={() => { setIsAdmin(false); setView('home'); localStorage.removeItem('esqf_is_admin'); }} />
         </div>
 
-        {isLoading ? (
-          <div className="flex h-96 items-center justify-center"><div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div></div>
-        ) : (
-          <main className="mt-4 pb-12">
-            {view === 'home' && <EventList events={events} products={products} currentTime={currentTime} onSelectEvent={async (id) => { const fullEvent = await api.fetchEventDetails(id).catch(() => null); if (fullEvent) { setSelectedEvent(fullEvent); setView('event-detail'); window.scrollTo(0, 0); } }} />}
-            {view === 'event-detail' && selectedEvent && <EventDetail event={selectedEvent} currentTime={currentTime} onBack={() => { setView('home'); setSelectedEvent(null); }} onRegister={async (id, n, e) => { await api.register(id, n, e); showToast('Inscrição confirmada!', 'success'); loadData(true); }} />}
-            {view === 'admin-dashboard' && isAdmin && (
-              <AdminPanel 
-                events={events} products={products} bannerUrl={homeBanner} primaryColor={primaryColor} buttonColor={buttonColor} backgroundColor={backgroundColor}
-                onUpdateColors={async (p, b, bg) => { await api.updateSetting('primary_color', p); await api.updateSetting('button_color', b); await api.updateSetting('bg_color', bg); setPrimaryColor(p); setButtonColor(b); setBackgroundColor(bg); showToast('Cores salvas!', 'success'); }}
-                onUpdateBanner={async (url) => { await api.updateSetting('home_banner', url); setHomeBanner(url); showToast('Banner atualizado!', 'success'); }}
-                onCreateEvent={async (e) => { await api.createEvent(e); loadData(true); showToast('Evento salvo!', 'success'); }}
-                onDeleteEvent={async (id) => { await api.deleteEvent(id); loadData(true); showToast('Evento excluído.'); }}
-                onUpsertProduct={async (p) => { await api.upsertProduct(p); loadData(true); showToast('Produto salvo!', 'success'); }}
-                onDeleteProduct={async (id) => { await api.deleteProduct(id); loadData(true); showToast('Produto removido.'); }}
-                onBack={() => setView('home')}
-              />
-            )}
-          </main>
-        )}
+        <main className="mt-4 pb-12">
+          {isLoading && view === 'home' ? (
+            <div className="flex h-96 items-center justify-center"><div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div></div>
+          ) : (
+            <>
+              {view === 'home' && <EventList events={events} products={products} currentTime={currentTime} onSelectEvent={async (id) => { 
+                const quickEvent = events.find(e => e.id === id);
+                if (quickEvent) setSelectedEvent(quickEvent);
+                setView('event-detail');
+                window.scrollTo(0, 0);
+                const fullEvent = await api.fetchEventDetails(id).catch(() => null);
+                if (fullEvent) setSelectedEvent(fullEvent);
+              }} />}
+              {view === 'event-detail' && selectedEvent && <EventDetail event={selectedEvent} currentTime={currentTime} onBack={() => { setView('home'); setSelectedEvent(null); }} onRegister={async (id, n, e) => { await api.register(id, n, e); showToast('Inscrição confirmada!', 'success'); loadData(true); }} />}
+              {view === 'admin-dashboard' && isAdmin && (
+                <AdminPanel 
+                  events={events} products={products} bannerUrl={homeBanner} primaryColor={primaryColor} buttonColor={buttonColor} backgroundColor={backgroundColor}
+                  onUpdateColors={async (p, b, bg) => { await api.updateSetting('primary_color', p); await api.updateSetting('button_color', b); await api.updateSetting('bg_color', bg); setPrimaryColor(p); setButtonColor(b); setBackgroundColor(bg); showToast('Cores salvas!', 'success'); }}
+                  onUpdateBanner={async (url) => { await api.updateSetting('home_banner', url); setHomeBanner(url); showToast('Banner atualizado!', 'success'); }}
+                  onCreateEvent={async (e) => { await api.createEvent(e); loadData(true); showToast('Evento salvo!', 'success'); }}
+                  onDeleteEvent={async (id) => { await api.deleteEvent(id); loadData(true); showToast('Evento excluído.'); }}
+                  onUpsertProduct={async (p) => { await api.upsertProduct(p); loadData(true); showToast('Produto salvo!', 'success'); }}
+                  onDeleteProduct={async (id) => { await api.deleteProduct(id); loadData(true); showToast('Produto removido.'); }}
+                  onBack={() => setView('home')}
+                />
+              )}
+            </>
+          )}
+        </main>
       </div>
 
       <footer className="py-12 text-center border-t border-white/5 bg-zinc-950/50 mt-12">
