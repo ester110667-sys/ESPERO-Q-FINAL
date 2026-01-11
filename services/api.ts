@@ -7,6 +7,12 @@ const REGISTRANTS_PAGE_SIZE = 50;
 const handleSupabaseError = (error: any, context: string): string => {
   console.error(`Supabase Error [${context}]:`, error);
   if (!error) return 'Erro desconhecido.';
+  
+  const msg = error.message || '';
+  // Mapeamento de erros vindos diretamente da lógica do PostgreSQL (RPC)
+  if (msg.includes('VAGAS_ESGOTADAS')) return 'ESGOTADO: Infelizmente as vagas acabaram enquanto você enviava.';
+  if (msg.includes('JA_INSCRITO')) return 'Este e-mail já possui uma vaga garantida para este evento.';
+  
   if (error.code === '42501') return 'Erro de permissão (RLS).';
   return error.message || 'Erro na operação com o banco de dados.';
 };
@@ -32,7 +38,8 @@ const mapEvent = (dbEvent: any): Event => ({
   totalVacancies: Number(dbEvent.total_vacancies) || 0,
   openAt: safeDate(dbEvent.open_at),
   closedAt: safeDate(dbEvent.closed_at),
-  registrantCount: dbEvent.registrations?.[0]?.count ?? 0,
+  // Prioriza a contagem vinda da agregação oficial do banco (registrations count)
+  registrantCount: dbEvent.registrations?.[0]?.count ?? (Array.isArray(dbEvent.registrations) ? dbEvent.registrations.length : 0),
   registrants: Array.isArray(dbEvent.registrations) && dbEvent.registrations[0]?.count === undefined 
     ? dbEvent.registrations.map(mapRegistrant) 
     : []
@@ -123,7 +130,7 @@ export const api = {
   },
 
   async createEvent(event: any): Promise<void> {
-    const payload = { id: event.id || undefined, name: event.name, description: event.description, image_url: event.imageUrl, total_vacancies: event.total_vacancies || event.vagas || event.totalVacancies, open_at: new Date(event.openAt).toISOString(), closed_at: new Date(event.closedAt).toISOString() };
+    const payload = { id: event.id || undefined, name: event.name, description: event.description, image_url: event.imageUrl, total_vacancies: event.total_vacancies, open_at: new Date(event.openAt).toISOString(), closed_at: new Date(event.closedAt).toISOString() };
     const { error } = await supabase.from('events').upsert(payload);
     if (error) throw new Error(handleSupabaseError(error, 'saveEvent'));
   },
@@ -152,9 +159,18 @@ export const api = {
     }
   },
 
+  // REGISTRO ATÔMICO VIA RPC (A ÚNICA FONTE DA VERDADE)
   async register(eventId: string, name: string, email: string): Promise<void> {
-    const { error } = await supabase.from('registrations').insert([{ event_id: eventId, name, email }]);
-    if (error) throw new Error(handleSupabaseError(error, 'register'));
+    const { error } = await supabase.rpc('register_for_event', {
+      target_event_id: eventId,
+      registrant_name: name,
+      registrant_email: email
+    });
+    
+    if (error) {
+      // O erro 'VAGAS_ESGOTADAS' ou 'JA_INSCRITO' é capturado aqui
+      throw new Error(handleSupabaseError(error, 'register_rpc'));
+    }
   },
 
   subscribeToChanges(callback: () => void) {

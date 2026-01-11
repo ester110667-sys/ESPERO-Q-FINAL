@@ -1,24 +1,39 @@
-
-import React from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 
-// Simples Error Boundary para evitar a "tela preta" caso ocorra um erro inesperado
-class RootErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
-  constructor(props: any) {
+// Explicitly defined types for props and state to ensure TypeScript compatibility
+interface RootErrorBoundaryProps {
+  children?: ReactNode;
+}
+
+interface RootErrorBoundaryState {
+  hasError: boolean;
+}
+
+// Simple Error Boundary to avoid "black screen" in case of unexpected errors
+// Fix: Using Component from named import to resolve property inheritance issues in TypeScript
+class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErrorBoundaryState> {
+  constructor(props: RootErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false };
+    // Initialize state within the constructor
+    this.state = {
+      hasError: false
+    };
   }
 
-  static getDerivedStateFromError() {
+  // Updates state when an error is caught during rendering
+  static getDerivedStateFromError(): RootErrorBoundaryState {
     return { hasError: true };
   }
 
-  componentDidCatch(error: any, errorInfo: any) {
+  // Logs the error details for debugging
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Critical Render Error:", error, errorInfo);
   }
 
   render() {
+    // If an error occurred, render custom recovery UI
     if (this.state.hasError) {
       return (
         <div style={{ 
@@ -55,6 +70,8 @@ class RootErrorBoundary extends React.Component<{children: React.ReactNode}, {ha
         </div>
       );
     }
+
+    // Otherwise, render children
     return this.props.children;
   }
 }
