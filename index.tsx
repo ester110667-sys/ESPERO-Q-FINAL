@@ -1,3 +1,4 @@
+
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
@@ -12,14 +13,18 @@ interface RootErrorBoundaryState {
 }
 
 // Simple Error Boundary to avoid "black screen" in case of unexpected errors
-// Fix: Using Component from named import to resolve property inheritance issues in TypeScript
 class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErrorBoundaryState> {
+  // Fix: Explicitly declare the state property for TypeScript
+  public state: RootErrorBoundaryState = {
+    hasError: false
+  };
+
+  // Fix: Explicitly declare the props property to resolve TypeScript missing property error in specific environments
+  public props: RootErrorBoundaryProps;
+
   constructor(props: RootErrorBoundaryProps) {
     super(props);
-    // Initialize state within the constructor
-    this.state = {
-      hasError: false
-    };
+    this.props = props;
   }
 
   // Updates state when an error is caught during rendering
@@ -72,6 +77,7 @@ class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErrorBound
     }
 
     // Otherwise, render children
+    // Fix: Accessing children from correctly typed this.props
     return this.props.children;
   }
 }

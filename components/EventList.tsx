@@ -1,17 +1,15 @@
 
 import React, { useState } from 'react';
-import { Event, Product } from '../types.ts';
-import EventCard from './EventCard.tsx';
-import ProductList from './ProductList.tsx';
+import { Event } from '../types.ts';
+import EventCard from '../EventCard.tsx';
 
 interface EventListProps {
   events: Event[];
-  products: Product[];
   currentTime: number;
   onSelectEvent: (id: string) => void;
 }
 
-const EventList: React.FC<EventListProps> = ({ events, products, currentTime, onSelectEvent }) => {
+const EventList: React.FC<EventListProps> = ({ events, currentTime, onSelectEvent }) => {
   const [activeTab, setActiveTab] = useState<'ativos' | 'passados'>('ativos');
 
   const activeEvents = events.filter(e => currentTime <= e.closedAt).sort((a, b) => a.openAt - b.openAt);
@@ -38,11 +36,6 @@ const EventList: React.FC<EventListProps> = ({ events, products, currentTime, on
             ))}
           </div>
         )}
-      </div>
-
-      {/* Seção de Vendas */}
-      <div className="pt-16 border-t border-zinc-900">
-        <ProductList products={products} />
       </div>
     </div>
   );

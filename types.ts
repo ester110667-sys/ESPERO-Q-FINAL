@@ -1,7 +1,6 @@
 
 export interface Registrant {
   id: string;
-  name: string;
   email: string;
   timestamp: number;
 }
@@ -15,14 +14,14 @@ export interface Event {
   openAt: number;
   closedAt: number;
   registrants: Registrant[];
-  registrantCount: number; // Otimização: Contagem total de inscritos
+  registrantCount: number;
 }
 
 export interface Product {
   id: string;
   name: string;
-  images: string[]; // URLs do Supabase Storage
   link: string;
+  images: string[];
   isActive: boolean;
 }
 
@@ -32,5 +31,6 @@ export enum EventStatus {
   CLOSED = 'Inscrições fechadas',
   OPEN = 'Inscrições abertas',
   FULL = 'Vagas esgotadas',
-  FINISHED = 'Evento encerrado'
+  FINISHED = 'Evento encerrado',
+  CONFIG_ERROR = 'Erro de Configuração'
 }
