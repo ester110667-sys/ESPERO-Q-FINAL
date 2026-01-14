@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Event, Registrant } from './types';
+import React, { useState } from 'react';
+import { Event } from './types';
 import { getUserRegistrations, registerEventForUser } from './utils/storage';
 import { api } from './services/api.ts';
 
@@ -16,11 +16,6 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, currentTime, onBack, o
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  const [registrants, setRegistrants] = useState<Registrant[]>([]);
-  const [isLoadingList, setIsLoadingList] = useState(true);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  
   const vacanciesLeft = Math.max(0, event.totalVacancies - event.registrantCount);
   const isFull = vacanciesLeft <= 0;
   const isAfterOpen = currentTime >= event.openAt;
@@ -29,42 +24,6 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, currentTime, onBack, o
   
   const userRegs = getUserRegistrations();
   const isAlreadyRegisteredBrowser = userRegs.includes(event.id);
-
-  const loadMoreRegistrants = useCallback(async () => {
-    if (isLoadingList || !hasMore) return;
-    setIsLoadingList(true);
-    try {
-      const { registrants: newRegistrants, hasMore: newHasMore } = await api.fetchRegistrants(event.id, page);
-      setRegistrants(prev => [...prev, ...newRegistrants]);
-      setPage(prev => prev + 1);
-      setHasMore(newHasMore);
-    } catch (error) {
-      console.error("Erro ao carregar mais inscritos:", error);
-    } finally {
-      setIsLoadingList(false);
-    }
-  }, [event.id, page, hasMore, isLoadingList]);
-
-  useEffect(() => {
-    setRegistrants([]);
-    setPage(1);
-    setHasMore(true);
-    const initialLoad = async () => {
-        setIsLoadingList(true);
-        try {
-            const { registrants: initialRegistrants, hasMore: initialHasMore } = await api.fetchRegistrants(event.id, 1);
-            setRegistrants(initialRegistrants);
-            setPage(2);
-            setHasMore(initialHasMore);
-        } catch (error) {
-            console.error("Erro ao carregar inscritos:", error);
-            setHasMore(false);
-        } finally {
-            setIsLoadingList(false);
-        }
-    };
-    initialLoad();
-  }, [event.id]);
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -76,12 +35,6 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, currentTime, onBack, o
       navigator.clipboard.writeText(url);
       alert('Link copiado!');
     }
-  };
-
-  const maskEmail = (emailStr: string) => {
-    if (!emailStr || !emailStr.includes('@')) return '***';
-    const [user, domain] = emailStr.split('@');
-    return `${user.charAt(0)}***@${domain}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -199,40 +152,6 @@ const EventDetail: React.FC<EventDetailProps> = ({ event, currentTime, onBack, o
             </form>
         )}
       </section>
-
-      {event.registrantCount > 0 && (
-        <section className="bg-zinc-950 border border-zinc-900 rounded-[3rem] p-8 sm:p-12 shadow-2xl">
-          <h2 className="text-xl font-black uppercase tracking-tight mb-8 border-b border-zinc-800 pb-6 flex justify-between items-center">
-            <span>Inscritos <span className="text-orange-500">Confirmados</span></span>
-            <span className="text-[10px] font-black text-zinc-400 uppercase bg-zinc-900 border border-zinc-700 px-3 py-1 rounded-full">{event.registrantCount} total</span>
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {registrants.map((reg, idx) => (
-              <div key={reg.id} className="flex items-center justify-between gap-4 bg-zinc-900 border border-zinc-800 p-4 rounded-2xl group transition-all hover:bg-zinc-800">
-                <div className="flex items-center gap-4">
-                  <span className="text-xs font-black text-zinc-600 w-4">{idx + 1}.</span>
-                  <span className="font-mono text-[10px] text-zinc-200 uppercase tracking-tight">{maskEmail(reg.email)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          {isLoadingList && (
-            <div className="flex justify-center items-center py-10 text-center text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-              <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mr-3"></div>
-              Acessando Banco de Dados...
-            </div>
-          )}
-          
-          {hasMore && !isLoadingList && (
-            <div className="mt-8 text-center">
-              <button onClick={loadMoreRegistrants} className="px-8 py-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-xl text-[9px] font-black uppercase border border-zinc-700 transition-all active:scale-95 shadow-md">
-                Carregar Mais Inscritos
-              </button>
-            </div>
-          )}
-        </section>
-      )}
     </div>
   );
 };
